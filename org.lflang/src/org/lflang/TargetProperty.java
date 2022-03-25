@@ -1149,7 +1149,7 @@ public enum TargetProperty {
          * 
          * @param e      The element to type check.
          * @param name   The name of the target property.
-         * @param errors A list of errors to append to if problems are found.
+         * @param v      The validator to which any errors should be reported.
          */
         public void check(Element e, String name, LFValidator v) {
             if (!this.validate(e)) {
@@ -1312,8 +1312,8 @@ public enum TargetProperty {
      */
     public enum SchedulerOption {
         NP(false),         // Non-preemptive
-        NP2(false, List.of(
-            Path.of("scheduler_NP2.c"),
+        heuristic(false, List.of(
+            Path.of("scheduler_heuristic.c"),
             Path.of("worker_assignments.h"),
             Path.of("worker_states.h"),
             Path.of("data_collection.h")

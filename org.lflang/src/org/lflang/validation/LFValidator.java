@@ -1062,6 +1062,12 @@ public class LFValidator extends BaseLFValidator {
      */
     @Check(CheckType.EXPENSIVE)
     public void checkTargetProperties(KeyValuePairs targetProperties) {
+        validateFastTargetProperty(targetProperties);
+        validateClockSyncTargetProperties(targetProperties);
+        validateSchedulerTargetProperties(targetProperties);
+    }
+
+    private void validateFastTargetProperty(KeyValuePairs targetProperties) {
         EList<KeyValuePair> fastTargetProperties = new BasicEList<>(targetProperties.getPairs());
         fastTargetProperties.removeIf(pair -> TargetProperty.forName(pair.getName()) != TargetProperty.FAST);
         KeyValuePair fastTargetProperty = fastTargetProperties.size() > 0 ? fastTargetProperties.get(0) : null;
@@ -1079,7 +1085,7 @@ public class LFValidator extends BaseLFValidator {
                     break;
                 }
             }
-            
+
             // Check for physical actions
             for (Reactor reactor : info.model.getReactors()) {
                 // Check to see if the program has a physical action in a reactor
@@ -1095,7 +1101,9 @@ public class LFValidator extends BaseLFValidator {
                 }
             }
         }
-        
+    }
+
+    private void validateClockSyncTargetProperties(KeyValuePairs targetProperties) {
         EList<KeyValuePair> clockSyncTargetProperties = new BasicEList<>(targetProperties.getPairs());
         // Check to see if clock-sync is defined
         clockSyncTargetProperties.removeIf(pair -> TargetProperty.forName(pair.getName()) != TargetProperty.CLOCK_SYNC);
@@ -1116,9 +1124,10 @@ public class LFValidator extends BaseLFValidator {
                 );
             }
         }
-        
+    }
 
-        EList<KeyValuePair> schedulerTargetProperties = 
+    private void validateSchedulerTargetProperties(KeyValuePairs targetProperties) {
+        EList<KeyValuePair> schedulerTargetProperties =
                 new BasicEList<>(targetProperties.getPairs());
         schedulerTargetProperties.removeIf(pair -> TargetProperty
                 .forName(pair.getName()) != TargetProperty.SCHEDULER);
@@ -1126,8 +1135,13 @@ public class LFValidator extends BaseLFValidator {
                 .size() > 0 ? schedulerTargetProperties.get(0) : null;
         if (schedulerTargetProperty != null) {
             String schedulerName = schedulerTargetProperty.getValue().getId();
-            if (!TargetProperty.SchedulerOption.valueOf(schedulerName)
-                    .prioritizesDeadline()) {
+            TargetProperty.SchedulerOption scheduler;
+            try {
+                scheduler = TargetProperty.SchedulerOption.valueOf(schedulerName);
+            } catch (IllegalArgumentException e) {
+                return;  // This error will be caught by checkKeyValuePair
+            }
+            if (!scheduler.prioritizesDeadline()) {
                 // Check if a deadline is assigned to any reaction
                 if (info.model.getReactors().stream().filter(reactor -> {
                     // Filter reactors that contain at least one reaction that
