@@ -10,7 +10,7 @@ reactor DelayString2(delay:time(100 msec)) {
     =}
     reaction(in) -> a {=
         // The following copies the char*, not the string.
-        schedule_copy(a, self->delay, &(in->value), 1);
+        lf_schedule_copy(a, self->delay, &(in->value), 1);
     =}
 }
 reactor Test {

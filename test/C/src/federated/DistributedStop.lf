@@ -20,7 +20,7 @@ reactor Sender {
             // for 'act' like Stop.lf, we trigger the 
             // same reaction to test request_stop() being
             // called multiple times
-        	schedule(act, 0);        	
+        	lf_schedule(act, 0);        	
         }
         if (get_elapsed_logical_time() == USEC(1)) {
             // Call request_stop() both at (1 usec, 0) and

@@ -45,7 +45,7 @@ reactor RandomSource(min_time:time(2 sec), max_time:time(8 sec)) {
         srand(time(0));
         
         // Schedule the first event.
-        schedule(prompt, additional_time(0, self->max_time - self->min_time));
+        lf_schedule(prompt, additional_time(0, self->max_time - self->min_time));
     =}
     reaction(prompt) -> out {=
         self->count++;
@@ -55,19 +55,19 @@ reactor RandomSource(min_time:time(2 sec), max_time:time(8 sec)) {
     =}
     reaction(another) -> prompt {=
         // Schedule the next event.
-        schedule(prompt, additional_time(0, self->max_time - self->min_time));
+        lf_schedule(prompt, additional_time(0, self->max_time - self->min_time));
     =}
 }
 /**
  * Upon receiving a prompt, record the time of the prompt,
  * then listen for user input. When the user hits return,
- * then schedule a physical action that records the time
+ * then lf_schedule a physical action that records the time
  * of this event and then report the response time.
  */
 reactor GetUserInput {
     preamble {=
         // Thread to read input characters until an EOF is received.
-        // Each time a newline is received, schedule a user_response action.
+        // Each time a newline is received, lf_schedule a user_response action.
         void* read_input(void* user_response) {
             int c;
             while(1) {

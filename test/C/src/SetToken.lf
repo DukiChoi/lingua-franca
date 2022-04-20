@@ -4,7 +4,7 @@ reactor Source {
     output out:int*;
     logical action a:int;
     reaction(startup) -> a {=
-        schedule_int(a, MSEC(200), 42);
+        lf_schedule_int(a, MSEC(200), 42);
     =}
     reaction(a) -> out {=
         SET_TOKEN(out, a->token);

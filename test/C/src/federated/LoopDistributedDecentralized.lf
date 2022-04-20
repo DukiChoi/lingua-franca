@@ -15,7 +15,7 @@ preamble {=
     void* ping(void* actionref) {
         while(!stop) {
             info_print("Scheduling action.");
-            schedule(actionref, 0);
+            lf_schedule(actionref, 0);
             sleep(1);
         }
         return NULL;

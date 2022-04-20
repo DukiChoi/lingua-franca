@@ -474,10 +474,10 @@ public class CReactionGenerator {
                     "if ("+ref+"->is_present) {",
                     "    // Put the whole token on the event queue, not just the payload.",
                     "    // This way, the length and element_size are transported.",
-                    "    schedule_token("+actionName+", 0, "+ref+"->token);",
+                    "    lf_schedule_token("+actionName+", 0, "+ref+"->token);",
                     "}"
                 ) : 
-                "schedule_copy("+actionName+", 0, &"+ref+"->value, 1);  // Length is 1.";
+                "lf_schedule_copy("+actionName+", 0, &"+ref+"->value, 1);  // Length is 1.";
     }
 
     public static String generateForwardBody(String outputName, String targetType, String actionName, boolean isTokenType) {

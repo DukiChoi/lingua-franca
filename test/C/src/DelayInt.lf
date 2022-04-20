@@ -8,8 +8,8 @@ reactor Delay(delay:time(100 msec)) {
         if (a->has_value && a->is_present) SET(out, a->value);
     =}
     reaction(in) -> a {=
-        // Use specialized form of schedule for integer payloads.
-        schedule_int(a, self->delay, in->value);
+        // Use specialized form of lf_schedule for integer payloads.
+        lf_schedule_int(a, self->delay, in->value);
     =}
 }
 reactor Test {

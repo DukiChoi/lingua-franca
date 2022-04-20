@@ -5,7 +5,7 @@ main reactor GetMicroStep {
 
     logical action l;
     reaction(startup) -> l {=
-        schedule(l, 0);
+        lf_schedule(l, 0);
     =}
 
     reaction(l) -> l {=
@@ -15,7 +15,7 @@ main reactor GetMicroStep {
         }
         self->s += 1;
         if (self->s < 10) {
-            schedule(l, 0);
+            lf_schedule(l, 0);
         }
     =}
 }

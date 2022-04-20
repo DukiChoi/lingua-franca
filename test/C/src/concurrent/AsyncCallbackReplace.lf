@@ -15,8 +15,8 @@ main reactor {
 		    // timestamps will not be sufficiently separated.
 		    // The minimum time between these is determined
 		    // by the argument in the physical action definition.
-			schedule_int(a, 0, 0);
-            schedule_int(a, 0, 1);
+			lf_schedule_int(a, 0, 0);
+            lf_schedule_int(a, 0, 1);
 		}
 		// Simulate time passing before a callback occurs.
 		void* take_time(void* a) {

@@ -34,7 +34,7 @@ reactor CountMicrostep {
     logical action act:int;
     timer t(0, 1 msec);
     reaction(t) -> act {=
-        schedule_int(act, 0, self->count++);
+        lf_schedule_int(act, 0, self->count++);
     =}
     
     reaction(act) -> out {=

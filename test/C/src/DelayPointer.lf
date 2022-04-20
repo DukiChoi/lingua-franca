@@ -12,7 +12,7 @@ reactor DelayPointer2(delay:time(100 msec)) {
     reaction(in) -> a {=
         // Schedule the actual token from the input rather than
         // a new token with a copy of the input value.
-        schedule_token(a, self->delay, in->token);
+        lf_schedule_token(a, self->delay, in->token);
     =}
 }
 reactor Source {

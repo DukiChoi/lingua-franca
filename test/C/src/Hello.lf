@@ -1,5 +1,5 @@
 // This test checks that logical time is incremented an appropriate
-// amount as a result of an invocation of the schedule() function at
+// amount as a result of an invocation of the lf_schedule() function at
 // runtime. It also performs various smoke tests of timing aligned
 // reactions. The first instance has a period of 4 seconds, the second
 // of 2 seconds, and the third (composite) or 1 second.
@@ -14,7 +14,7 @@ reactor Reschedule(period:time(2 secs), message:string("Hello C")) {
 	logical action a;
 	reaction(t) -> a {=
 		printf("%s\n", self->message);
-		schedule(a, MSEC(200));
+		lf_schedule(a, MSEC(200));
 		// Print the current time.
 		self->previous_time = get_logical_time();
 		time_t secs = self->previous_time/BILLION;
