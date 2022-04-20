@@ -65,7 +65,9 @@ public class CCoreFilesUtils {
             "platform/lf_windows_support.c",
             "platform/lf_windows_support.h",
             "platform/lf_linux_support.c",
-            "platform/lf_linux_support.h"
+            "platform/lf_linux_support.h",
+            "platform/lf_spike_support.c",
+            "platform/lf_spike_support.h"
         );
     }
 

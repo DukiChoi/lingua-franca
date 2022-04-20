@@ -613,6 +613,8 @@ public class CGenerator extends GeneratorBase {
                 );
                 // Copy the header files
                 copyTargetHeaderFile();
+                // Copy spike extra support files
+                copySpikeFiles();
             } catch (IOException e) {
                 Exceptions.sneakyThrow(e);
             }
@@ -1154,6 +1156,10 @@ public class CGenerator extends GeneratorBase {
      */
     private void pickCompilePlatform() {
         var OS = System.getProperty("os.name").toLowerCase();
+        // if platform target was set, use given platform instead 
+        if (targetConfig.platform != "") {
+            OS = targetConfig.platform;
+        }
         // FIXME: allow for cross-compiling
         if ((OS.indexOf("mac") >= 0) || (OS.indexOf("darwin") >= 0)) {
             if (mainDef != null && !targetConfig.useCmake) {
@@ -1171,6 +1177,12 @@ public class CGenerator extends GeneratorBase {
             if (mainDef != null && !targetConfig.useCmake) {
                 targetConfig.compileAdditionalSources.add(
                     "core" + File.separator + "platform" + File.separator + "lf_linux_support.c"
+                );
+            }
+        } else if (OS.indexOf("spike") >= 0) {
+            if (mainDef != null && !targetConfig.useCmake) {
+                targetConfig.compileAdditionalSources.add(
+                    "core" + File.separator + "platform" + File.separator + "lf_spike_support.c"
                 );
             }
         } else {
@@ -1276,6 +1288,24 @@ public class CGenerator extends GeneratorBase {
     public void copyTargetHeaderFile() throws IOException{
         FileUtil.copyFileFromClassPath("/lib/c/reactor-c/include/ctarget.h", fileConfig.getSrcGenPath().resolve("ctarget.h"));
         FileUtil.copyFileFromClassPath("/lib/c/reactor-c/lib/ctarget.c", fileConfig.getSrcGenPath().resolve("ctarget.c"));
+    }
+
+    public void copySpikeFiles() throws IOException {
+        var OS = System.getProperty("os.name").toLowerCase();
+        if (targetConfig.platform != "") {
+            OS = targetConfig.platform;
+        }
+        // if not compiling for spike platform, don't copy spike files
+        if (OS.indexOf("spike") < 0) {
+            return;
+        }
+        
+        FileUtil.copyFileFromClassPath("/lib/c/reactor-c/core/spike/Makefile", fileConfig.getSrcGenPath().resolve("Makefile"));
+        FileUtil.copyFilesFromClassPath(
+            "/lib/c/reactor-c/core/spike/common", 
+            fileConfig.getSrcGenPath().resolve("core/spike/common"),
+            List.of("crt.S", "encoding.h", "link.ld", "syscall.c", "util.h")
+        );
     }
 
     ////////////////////////////////////////////

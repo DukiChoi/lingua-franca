@@ -123,6 +123,15 @@ public class TargetConfig {
     public List<String> compilerFlags = new ArrayList<>();
 
     /**
+    * If non-empty sets the target platform that code will be generated for.  
+    * Use flags: "mac", "linux", "windows" to generate code for the respective platforms,
+    * which is different than the OS of the host machine.
+    * Use flag "spike" to cross code generate for baremetal spike platforms.
+    * If empty, the default is the OS of the system.
+    */
+    public String platform = "";
+
+    /**
      * The type of coordination used during the execution of a federated program.
      * The default is 'centralized'.
      */
