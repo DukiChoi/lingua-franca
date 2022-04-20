@@ -9,6 +9,6 @@ reactor InternalDelay (
         schedule_int(d, self->delay, in->value);
     =}
     reaction(d) -> out {=
-        SET(out, d->value);
+        lf_set(out, d->value);
     =}
 }

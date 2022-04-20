@@ -35,7 +35,7 @@ reactor Ping(count:int(10)) {
     logical action serve;
     reaction (startup, serve) -> send {= 
         printf("At logical time %lld, Ping sending %d.\n", get_elapsed_logical_time(), self->pingsLeft);
-        SET(send, self->pingsLeft--);
+        lf_set(send, self->pingsLeft--);
     =}
     reaction (receive) -> serve {=
         if (self->pingsLeft > 0) {
@@ -52,7 +52,7 @@ reactor Pong(expected:int(10)) {
     reaction(receive) -> send {=
         self->count++;
         printf("At logical time %lld, Pong received %d.\n", get_elapsed_logical_time(), receive->value);
-        SET(send, receive->value);
+        lf_set(send, receive->value);
         if (self->count == self->expected) {
             request_stop();
         }

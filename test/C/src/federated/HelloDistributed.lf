@@ -10,7 +10,7 @@ reactor Source {
     output out:string;
     reaction(startup) -> out {=
         info_print("Sending 'Hello World!' message from source federate.");
-        SET(out, "Hello World!");
+        lf_set(out, "Hello World!");
         request_stop();
     =}
 }

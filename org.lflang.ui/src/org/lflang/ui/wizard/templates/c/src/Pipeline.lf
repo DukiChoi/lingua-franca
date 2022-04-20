@@ -36,7 +36,7 @@ reactor SendCount(
     output out:int;
     timer t(offset, period);
     reaction(t) -> out {=
-        SET(out, self->count);
+        lf_set(out, self->count);
         self->count += self->increment;
     =}
 }
@@ -80,7 +80,7 @@ reactor TakeTime(
         while (get_physical_time() < start_time + self->approximate_time) {
             // Do nothing.
         }
-        SET(out, in->value);
+        lf_set(out, in->value);
     =}
 }
 

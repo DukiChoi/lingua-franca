@@ -19,6 +19,6 @@ main reactor {
     a = new Schedule2();
     timer t;
     reaction(t) -> a.x {=
-        SET(a.x, 1);
+        lf_set(a.x, 1);
     =}
 }

@@ -7,7 +7,7 @@ reactor Source {
     logical action foo:int;
 	output y:int;
 	reaction(foo) -> y {=
-		SET(y, foo->value);
+		lf_set(y, foo->value);
 	=}
 }
 

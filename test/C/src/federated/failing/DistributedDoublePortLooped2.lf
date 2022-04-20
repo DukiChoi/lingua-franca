@@ -20,7 +20,7 @@ reactor Count {
     timer t(0, 1 msec);
     reaction(t) -> out {=
         info_print("Count sends %d.", self->count);
-        SET(out, self->count++);
+        lf_set(out, self->count++);
     =}
     
     reaction(in) {=
@@ -38,7 +38,7 @@ reactor CountMicrostep {
     =}
     
     reaction(act) -> out {=
-        SET(out, act->value);
+        lf_set(out, act->value);
     =}
 }
 
@@ -58,7 +58,7 @@ reactor Print {
         if (in->is_present && in2->is_present) {
             error_print_and_exit("ERROR: invalid logical simultaneity.");
         }
-        SET(out, in->value);
+        lf_set(out, in->value);
     =}
     reaction(t) {=
         // Do nothing

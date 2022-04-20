@@ -7,7 +7,7 @@ reactor Source(value:int(42)) {
     output out:int;
     
     reaction(startup) -> out {=
-        SET(out, self->value);
+        lf_set(out, self->value);
     =}
 }
 

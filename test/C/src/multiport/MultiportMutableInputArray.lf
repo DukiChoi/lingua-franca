@@ -8,7 +8,7 @@ reactor Source {
     output[2] out:int[];
     reaction(startup) -> out {=
         // Dynamically allocate an output array of length 3.
-        SET_NEW_ARRAY(out[0], 3);
+        lf_set_new_array(out[0], 3);
         
         // Above allocates the array, which then must be populated.
         out[0]->value[0] = 0;
@@ -16,7 +16,7 @@ reactor Source {
         out[0]->value[2] = 2;
 
         // Dynamically allocate an output array of length 3.
-        SET_NEW_ARRAY(out[1], 3);
+        lf_set_new_array(out[1], 3);
         
         // Above allocates the array, which then must be populated.
         out[1]->value[0] = 3;
@@ -60,7 +60,7 @@ reactor Scale(scale:int(2)) {
                     in[j]->value[i] *= self->scale;
                 }
             }
-            SET_TOKEN(out[j], in[j]->token);
+            lf_set_token(out[j], in[j]->token);
         }
     =}
 }

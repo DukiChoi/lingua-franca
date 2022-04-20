@@ -954,7 +954,7 @@ public class CGenerator extends GeneratorBase {
         return String.join("\n",
             "// Generated forwarding reaction for connections with the same destination",
             "// but located in mutually exclusive modes.",
-            "SET("+dest+", "+source+"->value);"
+            "lf_set("+dest+", "+source+"->value);"
         );
     }
     

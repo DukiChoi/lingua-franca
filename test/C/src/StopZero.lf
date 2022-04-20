@@ -16,7 +16,7 @@ reactor Sender {
         printf("Sending 42 at (%lld, %u).\n",
                      get_elapsed_logical_time(),
                      get_microstep());
-        SET(out, 42);
+        lf_set(out, 42);
         schedule(act, 0);
         tag_t zero = (tag_t) { .time = get_start_time(), .microstep = 0u };
         tag_t one = (tag_t) { .time = get_start_time(), .microstep = 1u };

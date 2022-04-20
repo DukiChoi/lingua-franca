@@ -12,7 +12,7 @@ reactor Platform(start:int(0), expected_start:int(0), stp_offset_param:time(0)) 
     state count:int(start);
     state expected:int(expected_start);
     reaction(t) -> out {=
-        SET(out, self->count++);
+        lf_set(out, self->count++);
     =}
     reaction(in) {=
         info_print("Received %d.", in->value);

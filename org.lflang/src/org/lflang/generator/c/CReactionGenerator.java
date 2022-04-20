@@ -489,7 +489,7 @@ public class CReactionGenerator {
                     "((lf_token_t*)self->_lf__"+actionName+".token)->ref_count++;",
                     "self->_lf_"+outputName+".is_present = true;"
                 ) : 
-                "SET("+outputName+", "+actionName+"->value);";
+                "lf_set("+outputName+", "+actionName+"->value);";
     }
 
     /** 

@@ -23,7 +23,7 @@ reactor CountMicrostep {
     =}
     
     reaction(act) -> out {=
-        SET(out, act->value);
+        lf_set(out, act->value);
     =}
 }
 

@@ -6,7 +6,7 @@ reactor DelayString2(delay:time(100 msec)) {
     output out:string;
     logical action a:string;
     reaction(a) -> out {=
-        SET(out, a->value);
+        lf_set(out, a->value);
     =}
     reaction(in) -> a {=
         // The following copies the char*, not the string.
@@ -37,6 +37,6 @@ main reactor {
     t = new Test();
     d.out -> t.in; 
     reaction(startup) -> d.in {=
-        SET(d.in, "Hello");
+        lf_set(d.in, "Hello");
     =}
 }

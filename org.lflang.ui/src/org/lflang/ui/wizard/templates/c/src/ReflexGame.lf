@@ -51,7 +51,7 @@ reactor RandomSource(min_time:time(2 sec), max_time:time(8 sec)) {
         self->count++;
         printf("%d. Hit Return or Enter!", self->count);
         fflush(stdout);
-        SET(out, self->count);
+        lf_set(out, self->count);
     =}
     reaction(another) -> prompt {=
         // Schedule the next event.
@@ -117,7 +117,7 @@ reactor GetUserInput {
             // Reset the prompt_time to indicate that there is no new prompt.
             self->prompt_time = 0LL;
             // Trigger another prompt.
-            SET(another, 42);
+            lf_set(another, 42);
         }
     =}
     

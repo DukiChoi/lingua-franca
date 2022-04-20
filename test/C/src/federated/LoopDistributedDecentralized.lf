@@ -35,7 +35,7 @@ reactor Looper(incr:int(1), delay:time(0 msec), stp_offset:time(0)) {
     =}
     reaction(a) -> out {=
         info_print("Setting out.");
-        SET(out, self->count);
+        lf_set(out, self->count);
         self->count += self->incr;
     =}
     reaction(in) {=

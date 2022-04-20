@@ -13,7 +13,7 @@ reactor Source {
     output out:hello_t*;
     reaction(startup) -> out {=
         // Dynamically allocate an output struct.
-        SET_NEW(out);
+        lf_set_new(out);
         // Above allocates a struct, which then must be populated.
         out->value->name = "Earth";
         out->value->value = 42;
@@ -49,7 +49,7 @@ reactor Print(scale:int(2)) {
     output out:hello_t*;
     reaction(in) -> out {=
         in->value->value *= self->scale;
-        SET_TOKEN(out, in->token);
+        lf_set_token(out, in->token);
     =}
 }
 

@@ -95,8 +95,8 @@ reactor Receiver {
     p = new Print();
     a = new ImportantActuator();
     reaction(in) -> p.in, a.in {=
-        SET(p.in, in->value + 1);
-        SET(a.in, in->value + 1);
+        lf_set(p.in, in->value + 1);
+        lf_set(a.in, in->value + 1);
     =}
     
     reaction(t) {=

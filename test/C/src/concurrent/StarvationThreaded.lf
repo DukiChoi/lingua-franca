@@ -16,7 +16,7 @@
             schedule(loop, 0);
         }        
         self->iterator++;
-        SET(out, 42);
+        lf_set(out, 42);
     =}
     
     reaction(shutdown) {=

@@ -9,7 +9,7 @@ reactor Self {
     state expected:int(43);
     reaction(a) -> y {=
         printf("a = %d\n", a->value);
-        SET(y, a->value + 1);
+        lf_set(y, a->value + 1);
     =}
     reaction(x) -> a {=
         printf("x = %d\n", x->value);

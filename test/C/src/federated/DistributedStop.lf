@@ -14,7 +14,7 @@ reactor Sender {
         info_print("Sending 42 at (%lld, %u).",
                      get_elapsed_logical_time(),
                      get_microstep());
-        SET(out, 42);
+        lf_set(out, 42);
         if (get_microstep() == 0) {
             // Instead of having a separate reaction
             // for 'act' like Stop.lf, we trigger the 
