@@ -1,5 +1,7 @@
 // Test logical action with delay.
-target C;
+target C {
+    scheduler: QS
+};
 
 reactor GeneratedDelay {
     input y_in:int;

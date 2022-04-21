@@ -91,7 +91,9 @@ public class CCoreFilesUtils {
                     "threaded/scheduler_instance.h",
                     "threaded/scheduler_sync_tag_advance.c",
                     "threaded/scheduler_" + scheduler + ".c",
-                    "threaded/reactor_threaded.c"
+                    "threaded/reactor_threaded.c",
+                    scheduler == SchedulerOption.QS ? "threaded/instruction_QS.h" : "",
+                    scheduler == SchedulerOption.QS ? "threaded/static_schedule.h" : ""
                 ) :
                 List.of("reactor.c");
     }
