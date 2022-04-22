@@ -94,8 +94,8 @@ void lf_sched_init(
     _lf_sched_instance->schedule_index = 0;
     _lf_sched_instance->schedule_lengths = schedule_lengths;
     _lf_sched_instance->pc = calloc(number_of_workers, sizeof(size_t));
-    // TODO: The entries will be filled in when reactions instantiate
-    // in the _lf_initialize_trigger_objects function.
+    // TODO: The entries will be filled in reactions using
+    // _lf_global_self_structs in ActionDelay.c.
     _lf_sched_instance->reaction_instances = calloc(reaction_count, sizeof(reaction_t*));
 }
 

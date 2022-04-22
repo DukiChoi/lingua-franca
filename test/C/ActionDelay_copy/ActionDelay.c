@@ -6,6 +6,10 @@
 #include "core/threaded/reactor_threaded.c"
 #include "core/threaded/scheduler.h"
 #include "core/mixed_radix.h"
+
+// Global self struct array.
+void *_lf_global_self_structs[4];
+
 int main(int argc, char* argv[]) {
     return lf_reactor_c_main(argc, argv);
 }
@@ -255,6 +259,11 @@ void _lf_initialize_trigger_objects() {
     source_self_t* actiondelay_source_self[1];
     sink_self_t* actiondelay_sink_self[1];
     generateddelay_self_t* actiondelay_g_self[1];
+    // Populate the global self struct array
+    _lf_global_self_structs[0] = actiondelay_self;
+    _lf_global_self_structs[1] = actiondelay_source_self;
+    _lf_global_self_structs[2] = actiondelay_sink_self;
+    _lf_global_self_structs[3] = actiondelay_g_self;
     // ***** Start initializing ActionDelay of class ActionDelay
     actiondelay_self[0] = new_ActionDelay();
     
