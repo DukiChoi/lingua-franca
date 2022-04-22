@@ -1,6 +1,8 @@
 // Test logical action with delay.
 target C {
-    scheduler: QS
+    scheduler: QS,
+    workers: 3,
+    logging: DEBUG
 };
 
 reactor GeneratedDelay {
