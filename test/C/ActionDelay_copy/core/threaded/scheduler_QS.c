@@ -96,15 +96,12 @@ void lf_sched_init(
     _lf_sched_instance->schedule_lengths = &schedule_lengths[0];
     _lf_sched_instance->pc = calloc(number_of_workers, sizeof(size_t));
     _lf_sched_instance->reaction_return_values = calloc(number_of_workers, sizeof(int));
-
+    _lf_sched_instance->reaction_instances = params->reaction_instances;
     // Populate semaphores.
     _lf_sched_instance->semaphores = calloc(num_semaphores, sizeof(semaphore_t));
     for (int i = 0; i < num_semaphores; i++) {
         _lf_sched_instance->semaphores[i] = lf_semaphore_new(0);
     }
-
-    // The array entries will be filled in when reactions instantiate.
-    _lf_sched_instance->reaction_instances = params->reaction_instances;
 }
 
 /**
