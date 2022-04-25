@@ -51,6 +51,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /////////////////// External Variables /////////////////////////
 extern lf_mutex_t mutex;
 extern const int reaction_count;
+extern const int num_semaphores;
 extern const inst_t** static_schedules[];
 extern const uint32_t* schedule_lengths[];
 
@@ -90,13 +91,14 @@ void lf_sched_init(
     }
 
     // Initialize the QS-specific fields.
-    _lf_sched_instance->static_schedules = static_schedules;
-    _lf_sched_instance->schedule_index = 0;
-    _lf_sched_instance->schedule_lengths = schedule_lengths;
+    _lf_sched_instance->static_schedules = &static_schedules[0];
+    _lf_sched_instance->current_schedule_index = 0;
+    _lf_sched_instance->schedule_lengths = &schedule_lengths[0];
     _lf_sched_instance->pc = calloc(number_of_workers, sizeof(size_t));
-    // TODO: The entries will be filled in reactions using
-    // _lf_global_self_structs in ActionDelay.c.
+    // TODO: The entries will be filled in when reactions instantiate in.
     _lf_sched_instance->reaction_instances = calloc(reaction_count, sizeof(reaction_t*));
+    _lf_sched_instance->reaction_return_values = calloc(number_of_workers, sizeof(int));
+    _lf_sched_instance->semaphores = calloc(num_semaphores, sizeof(semaphore_t));
 }
 
 /**
@@ -105,7 +107,8 @@ void lf_sched_init(
  * This must be called when the scheduler is no longer needed.
  */
 void lf_sched_free() {
-    
+    free(_lf_sched_instance->pc);
+    free(_lf_sched_instance->reaction_instances);
 }
 
 ///////////////////// Scheduler Worker API (public) /////////////////////////
@@ -121,35 +124,48 @@ void lf_sched_free() {
  * worker thread should exit.
  */
 reaction_t* lf_sched_get_ready_reaction(int worker_number) {
-    DEBUG_PRINT("Worker %d asks for a reaction reaction.", worker_number);
-
-    // Decode the current instruction.
-    DEBUG_PRINT("Current schedule index: %d", _lf_sched_instance->schedule_index);
-    const inst_t** current_schedule = 
-        _lf_sched_instance->static_schedules[_lf_sched_instance->schedule_index];
-    const inst_t* current_worker_schedule = current_schedule[worker_number];
-    size_t worker_pc = _lf_sched_instance->pc[worker_number];
-    inst_t current_instruction = current_worker_schedule[worker_pc];
-    DEBUG_PRINT("Current instruction: %c %d, %d", 
-        current_instruction.inst, current_instruction.nid, current_instruction.loc);
-
-    // TODO:
+    // Execute the instructions
+    int schedule_index = _lf_sched_instance->current_schedule_index;
+    int pc = _lf_sched_instance->pc[worker_number];
+    int ret_value = _lf_sched_instance->reaction_return_values[worker_number];
+    const inst_t* sch_base = _lf_sched_instance->static_schedules[schedule_index][worker_number];
+    reaction_t* react_base = _lf_sched_instance->reaction_instances[schedule_index];
+    semaphore_t* sema_base = _lf_sched_instance->semaphores;
+    
     // If the instruction is Execute, return the reaction pointer and advance pc.
     // If the instruction is Wait, block until the reaction is finished (by checking
     // the semaphore) and process the next instruction until we process an Execute.
     // If the instruction is Stop, return NULL.
-    if (current_instruction.inst == 'e') {
-        // return a reaction pointer for the worker to execute.
-        reaction_t* reaction = _lf_sched_instance->reaction_instances[current_instruction.nid];
-        DEBUG_PRINT("Reaction returned is %p.", reaction);
-        return reaction;
-    }
+    do {
+        pc += 1;
+        switch (sch_base[pc].inst) {
+        case 'e': // Execute
+            _lf_sched_instance->pc[worker_number] = pc;
+            reaction_t* react = &react_base[sch_base[pc].op];
+            if (react->status == queued) return react;
+            break;
+        case 'w': // Wait
+            lf_semaphore_wait(&sema_base[sch_base[pc].op]);
+            break;
+        case 'n': // Notify
+            lf_semaphore_release(&sema_base[sch_base[pc].op], 1);
+            break;
+        case 's': // Stop
+            return NULL;
+        }
+    } while (pc < _lf_sched_instance->schedule_lengths[schedule_index][worker_number]);
     return NULL;
 }
 
 /**
  * @brief Inform the scheduler that worker thread 'worker_number' is done
  * executing the 'done_reaction'.
+ * 
+ * Check if the reaction that we just executed produces any outputs
+ * (similar to how the schedule_output_reactions() function does it).
+ * If there are outputs, append them to an event queue (a linked list
+ * of linked list, with each outer linked list representing a list of
+ * signals present at some time step).
  *
  * @param worker_number The worker number for the worker thread that has
  * finished executing 'done_reaction'.
@@ -157,12 +173,10 @@ reaction_t* lf_sched_get_ready_reaction(int worker_number) {
  */
 void lf_sched_done_with_reaction(size_t worker_number,
                                  reaction_t* done_reaction) {
-    // TODO:
-    // Check if the reaction that we just executed produces any outputs
-    // (similar to how the schedule_output_reactions() function does it).
-    // If there are outputs, append them to an event queue (a linked list
-    // of linked list, with each outer linked list representing a list of
-    // signals present at some time step).
+    if (!lf_bool_compare_and_swap(&done_reaction->status, queued, inactive)) {
+        error_print_and_exit("Unexpected reaction status: %d. Expected %d.",
+                             done_reaction->status, queued);
+    }
 }
 
 /**
@@ -177,5 +191,5 @@ void lf_sched_done_with_reaction(size_t worker_number,
  *
  */
 void lf_sched_trigger_reaction(reaction_t* reaction, int worker_number) {
-    
+    DEBUG_PRINT("lf_sched_trigger_reaction called. Nothing implemented for QS scheduler yet.");
 }

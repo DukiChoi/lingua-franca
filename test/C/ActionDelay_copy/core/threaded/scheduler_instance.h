@@ -44,7 +44,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../utils/semaphore.h"
 #include "scheduler.h"
-#include "instruction_QS.h"
+
+// FIXME: Add a macro guard here.
+#include "scheduler_QS.h"
 
 extern lf_mutex_t mutex;
 
@@ -134,6 +136,7 @@ typedef struct {
      */
     volatile size_t _lf_sched_next_reaction_level;
 
+    // FIXME: Add a macro guard or refactor into a separate struct.
     ///////// Specific to the quasi-static scheduler /////////
     /**
      * @brief Points to a read-only array of static schedules.
@@ -142,10 +145,18 @@ typedef struct {
     const inst_t*** static_schedules;
 
     /**
-     * @brief The index of the current schedule in static_schedules
+     * @brief An index that points to the current static schedules.
+     * 
+     * If there is one generic schedule, the index remains 0.
      * 
      */
-    int schedule_index;
+    int current_schedule_index;
+
+    /**
+     * @brief Return value of a reaction, indicating what output are generated.
+     *
+     */
+    const int* reaction_return_values;
 
     /**
      * @brief Points to a read-only array of lengths of the static schedules.
@@ -165,18 +176,17 @@ typedef struct {
      * The indices are the reaction indices in inst_t.
      */
     reaction_t** reaction_instances;
-
+    
     /**
-     * @brief Points to an array of semaphores, one for each reaction.
+     * @brief Points to an array of pointers to scheduler semaphores,
+     * which enable a worker to wait for another worker to finish an instruction.
      * 
-     * The indices that correspond to different reactions can be stored
-     * in the reaction instances. The initial count of the semaphores
-     * should also be stored in the reaction instances (in reactor.c).
-     * 
+     * The semaphores are assigned by the compiler, and they have initial counts
+     * of 0 (acquired). When the worker process a "notify [semaphore id]",
+     * the semaphore is released and unblocks waiting threads. The indicies are
+     * semaphore IDs.
      */
-    // semaphore_t** semaphores;
-    // For anything that is "one for each reaction," we store it in the
-    // reaction struct
+    semaphore_t* semaphores;
 } _lf_sched_instance_t;
 
 /**

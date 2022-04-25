@@ -7,12 +7,11 @@
 #define SCHEDULER_QS
 
 #include <stdint.h>
-#include "../reactor.h"
+#include "../utils/semaphore.h"
 
 typedef struct {
-    char inst;  // Exec, Wait, Stop
-    size_t nid; // Reaction ID.
-    size_t loc; // Location to jump to.
+    char inst;  // Exec, Wait, Notify, Stop
+    size_t op; // Operand
 } inst_t;
 
 #endif // SCHEDULER_QS
