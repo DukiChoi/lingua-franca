@@ -131,38 +131,47 @@ void lf_sched_free() {
 reaction_t* lf_sched_get_ready_reaction(int worker_number) {
     DEBUG_PRINT("Worker %d inside lf_sched_get_ready_reaction", worker_number);
     // Execute the instructions
+    size_t* pc = &_lf_sched_instance->pc[worker_number];
     int schedule_index = _lf_sched_instance->current_schedule_index;
-    int pc = _lf_sched_instance->pc[worker_number];
     int ret_value = _lf_sched_instance->reaction_return_values[worker_number];
     const inst_t* sch_base = _lf_sched_instance->static_schedules[schedule_index][worker_number];
     reaction_t** react_base = _lf_sched_instance->reaction_instances;
     semaphore_t** sema_base = _lf_sched_instance->semaphores;
-
-    DEBUG_PRINT("Current instruction: %c %zu", sch_base[pc].inst, sch_base[pc].op);
     
     // If the instruction is Execute, return the reaction pointer and advance pc.
     // If the instruction is Wait, block until the reaction is finished (by checking
     // the semaphore) and process the next instruction until we process an Execute.
     // If the instruction is Stop, return NULL.
-    do {
-        pc += 1;
-        switch (sch_base[pc].inst) {
-        case 'e': // Execute
-            _lf_sched_instance->pc[worker_number] = pc;
-            reaction_t* react = react_base[sch_base[pc].op];
-            if (react->status == queued) return react;
+    reaction_t* ret_val = NULL;
+    bool loop_done = false;
+    while (*pc < _lf_sched_instance->schedule_lengths[schedule_index][worker_number] && !loop_done) {
+        DEBUG_PRINT("Current instruction: %c %zu", sch_base[*pc].inst, sch_base[*pc].op);
+        switch (sch_base[*pc].inst) {
+        case 'e': // Execute 
+        {
+            reaction_t* react = react_base[sch_base[*pc].op];
+            if (react->status == queued) {
+                ret_val = react;
+                loop_done = true;
+            } else
+                DEBUG_PRINT("Worker %d skip execution", worker_number);
             break;
+        }
         case 'w': // Wait
-            lf_semaphore_wait(sema_base[sch_base[pc].op]);
+            lf_semaphore_wait(sema_base[sch_base[*pc].op]);
             break;
         case 'n': // Notify
-            lf_semaphore_release(sema_base[sch_base[pc].op], 1);
+            lf_semaphore_release(sema_base[sch_base[*pc].op], 1);
             break;
         case 's': // Stop
-            return NULL;
+            loop_done = true;
+            DEBUG_PRINT("Worker %d reaches a stop instruction", worker_number);
+            break;
         }
-    } while (pc < _lf_sched_instance->schedule_lengths[schedule_index][worker_number]);
-    return NULL;
+        *pc += 1;
+    };
+    DEBUG_PRINT("Worker %d leaves lf_sched_get_ready_reaction", worker_number);
+    return ret_val;
 }
 
 /**

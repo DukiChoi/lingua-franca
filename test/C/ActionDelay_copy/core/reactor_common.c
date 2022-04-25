@@ -1624,6 +1624,7 @@ void schedule_output_reactions(reaction_t* reaction, int worker) {
             }
         }
     }
+#ifndef QS_SCHEDULER
     if (downstream_to_execute_now != NULL) {
         LOG_PRINT("Worker %d: Optimizing and executing downstream reaction now: %s", worker, downstream_to_execute_now->name);
         bool violation = false;
@@ -1705,6 +1706,7 @@ void schedule_output_reactions(reaction_t* reaction, int worker) {
         DEBUG_PRINT("Finally, reset reaction's is_STP_violated field to false: %s",
         		downstream_to_execute_now->name);
     }
+#endif
 }
 
 /**
