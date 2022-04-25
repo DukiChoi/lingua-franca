@@ -95,10 +95,16 @@ void lf_sched_init(
     _lf_sched_instance->current_schedule_index = 0;
     _lf_sched_instance->schedule_lengths = &schedule_lengths[0];
     _lf_sched_instance->pc = calloc(number_of_workers, sizeof(size_t));
-    // TODO: The entries will be filled in when reactions instantiate in.
-    _lf_sched_instance->reaction_instances = calloc(reaction_count, sizeof(reaction_t*));
     _lf_sched_instance->reaction_return_values = calloc(number_of_workers, sizeof(int));
+
+    // Populate semaphores.
     _lf_sched_instance->semaphores = calloc(num_semaphores, sizeof(semaphore_t));
+    for (int i = 0; i < num_semaphores; i++) {
+        _lf_sched_instance->semaphores[i] = lf_semaphore_new(0);
+    }
+
+    // The array entries will be filled in when reactions instantiate.
+    _lf_sched_instance->reaction_instances = params->reaction_instances;
 }
 
 /**
@@ -108,6 +114,8 @@ void lf_sched_init(
  */
 void lf_sched_free() {
     free(_lf_sched_instance->pc);
+    free(_lf_sched_instance->reaction_return_values);
+    free(_lf_sched_instance->semaphores);
     free(_lf_sched_instance->reaction_instances);
 }
 
@@ -124,13 +132,16 @@ void lf_sched_free() {
  * worker thread should exit.
  */
 reaction_t* lf_sched_get_ready_reaction(int worker_number) {
+    DEBUG_PRINT("Worker %d inside lf_sched_get_ready_reaction", worker_number);
     // Execute the instructions
     int schedule_index = _lf_sched_instance->current_schedule_index;
     int pc = _lf_sched_instance->pc[worker_number];
     int ret_value = _lf_sched_instance->reaction_return_values[worker_number];
     const inst_t* sch_base = _lf_sched_instance->static_schedules[schedule_index][worker_number];
-    reaction_t* react_base = _lf_sched_instance->reaction_instances[schedule_index];
-    semaphore_t* sema_base = _lf_sched_instance->semaphores;
+    reaction_t** react_base = _lf_sched_instance->reaction_instances;
+    semaphore_t** sema_base = _lf_sched_instance->semaphores;
+
+    DEBUG_PRINT("Current instruction: %c %zu", sch_base[pc].inst, sch_base[pc].op);
     
     // If the instruction is Execute, return the reaction pointer and advance pc.
     // If the instruction is Wait, block until the reaction is finished (by checking
@@ -141,14 +152,14 @@ reaction_t* lf_sched_get_ready_reaction(int worker_number) {
         switch (sch_base[pc].inst) {
         case 'e': // Execute
             _lf_sched_instance->pc[worker_number] = pc;
-            reaction_t* react = &react_base[sch_base[pc].op];
+            reaction_t* react = react_base[sch_base[pc].op];
             if (react->status == queued) return react;
             break;
         case 'w': // Wait
-            lf_semaphore_wait(&sema_base[sch_base[pc].op]);
+            lf_semaphore_wait(sema_base[sch_base[pc].op]);
             break;
         case 'n': // Notify
-            lf_semaphore_release(&sema_base[sch_base[pc].op], 1);
+            lf_semaphore_release(sema_base[sch_base[pc].op], 1);
             break;
         case 's': // Stop
             return NULL;

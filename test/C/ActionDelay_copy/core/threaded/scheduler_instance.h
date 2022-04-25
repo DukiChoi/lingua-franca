@@ -156,7 +156,7 @@ typedef struct {
      * @brief Return value of a reaction, indicating what output are generated.
      *
      */
-    const int* reaction_return_values;
+    int* reaction_return_values;
 
     /**
      * @brief Points to a read-only array of lengths of the static schedules.
@@ -186,7 +186,7 @@ typedef struct {
      * the semaphore is released and unblocks waiting threads. The indicies are
      * semaphore IDs.
      */
-    semaphore_t* semaphores;
+    semaphore_t** semaphores;
 } _lf_sched_instance_t;
 
 /**

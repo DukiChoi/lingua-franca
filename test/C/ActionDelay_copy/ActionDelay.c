@@ -7,9 +7,6 @@
 #include "core/threaded/scheduler.h"
 #include "core/mixed_radix.h"
 
-// Global self struct array.
-void *_lf_global_self_structs[4];
-
 int main(int argc, char* argv[]) {
     return lf_reactor_c_main(argc, argv);
 }
@@ -259,11 +256,6 @@ void _lf_initialize_trigger_objects() {
     source_self_t* actiondelay_source_self[1];
     sink_self_t* actiondelay_sink_self[1];
     generateddelay_self_t* actiondelay_g_self[1];
-    // Populate the global self struct array
-    _lf_global_self_structs[0] = actiondelay_self;
-    _lf_global_self_structs[1] = actiondelay_source_self;
-    _lf_global_self_structs[2] = actiondelay_sink_self;
-    _lf_global_self_structs[3] = actiondelay_g_self;
     // ***** Start initializing ActionDelay of class ActionDelay
     actiondelay_self[0] = new_ActionDelay();
     
@@ -600,13 +592,25 @@ void _lf_initialize_trigger_objects() {
         }
         
     }
+
+    // Collect the instantiated reactions for scheduling.
+    // Shaokai: If the void* pointer is passed into the scheduler API,
+    // the scheduler does not know how to parse the info in a generic way.
+    // To avoid name collision, the name "_lf_reaction_instances"
+    // needs to be checked by the LF validator.
+    reaction_t **_lf_reaction_instances = (reaction_t**) calloc(4, sizeof(reaction_t*));
+    _lf_reaction_instances[0] = &actiondelay_source_self[0]->_lf__reaction_0;
+    _lf_reaction_instances[1] = &actiondelay_sink_self[0]->_lf__reaction_0;
+    _lf_reaction_instances[2] = &actiondelay_g_self[0]->_lf__reaction_0;
+    _lf_reaction_instances[3] = &actiondelay_g_self[0]->_lf__reaction_1;
     
     // Initialize the scheduler
     size_t num_reactions_per_level[4] = 
         {1, 1, 1, 1};
     sched_params_t sched_params = (sched_params_t) {
                             .num_reactions_per_level = &num_reactions_per_level[0],
-                            .num_reactions_per_level_size = (size_t) 4};
+                            .num_reactions_per_level_size = (size_t) 4,
+                            .reaction_instances = _lf_reaction_instances};
     lf_sched_init(
         (size_t)_lf_number_of_workers,
         &sched_params

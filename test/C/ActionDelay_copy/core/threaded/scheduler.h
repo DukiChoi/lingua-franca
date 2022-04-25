@@ -63,10 +63,13 @@ THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * `num_reactions_per_level` array if it is not NULL. If set, it should be the
  * maximum level over all reactions in the program plus 1. If not set,
  * `DEFAULT_MAX_REACTION_LEVEL` will be used.
+ * @param reaction_instances Required if QS scheduler is in use. It should be
+ * an array of pointers that point to the instantiated reactions.
  */
 typedef struct {
     size_t* num_reactions_per_level;
     size_t num_reactions_per_level_size;
+    reaction_t** reaction_instances;
 } sched_params_t;
 
 /**
