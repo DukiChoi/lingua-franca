@@ -3,15 +3,15 @@
  * @author Shaokai Lin <shaokai@eecs.berkeley.edu>
  * @brief Format of the instruction set
  */
-#ifndef SCHEDULER_QS
-#define SCHEDULER_QS
+#ifdef SCHEDULER_QS
 
 #include <stdint.h>
-#include "../utils/semaphore.h"
 
 typedef struct {
     char inst;  // Exec, Wait, Notify, Stop
     size_t op; // Operand
 } inst_t;
+
+void lf_sched_reset_pc();
 
 #endif // SCHEDULER_QS

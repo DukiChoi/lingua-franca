@@ -854,6 +854,7 @@ void _lf_initialize_start_tag() {
 
 /** For logging and debugging, each worker thread is numbered. */
 int worker_thread_count = 0;
+int active_worker_thread_count = 0;
 
 /**
  * Handle deadline violation for 'reaction'. 
@@ -1032,7 +1033,8 @@ void _lf_worker_do_work(int worker_number) {
  */
 void* worker(void* arg) {
     lf_mutex_lock(&mutex);
-    int worker_number = worker_thread_count++;
+    int worker_number = worker_thread_count++; // worker_number does not decrement.
+    active_worker_thread_count++;
     LOG_PRINT("Worker thread %d started.", worker_number);
     lf_mutex_unlock(&mutex);
 
@@ -1041,9 +1043,9 @@ void* worker(void* arg) {
     lf_mutex_lock(&mutex);
 
     // This thread is exiting, so don't count it anymore.
-    worker_thread_count--;
+    active_worker_thread_count--;
 
-    if (worker_thread_count == 0) {
+    if (active_worker_thread_count == 0) {
         // The last worker thread to exit will inform the RTI if needed.
         // Notify the RTI that there will be no more events (if centralized coord).
         // False argument means don't wait for a reply.

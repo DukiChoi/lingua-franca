@@ -600,9 +600,9 @@ void _lf_initialize_trigger_objects() {
     // needs to be checked by the LF validator.
     reaction_t **_lf_reaction_instances = (reaction_t**) calloc(4, sizeof(reaction_t*));
     _lf_reaction_instances[0] = &actiondelay_source_self[0]->_lf__reaction_0;
-    _lf_reaction_instances[1] = &actiondelay_sink_self[0]->_lf__reaction_0;
-    _lf_reaction_instances[2] = &actiondelay_g_self[0]->_lf__reaction_0;
-    _lf_reaction_instances[3] = &actiondelay_g_self[0]->_lf__reaction_1;
+    _lf_reaction_instances[1] = &actiondelay_g_self[0]->_lf__reaction_0;
+    _lf_reaction_instances[2] = &actiondelay_g_self[0]->_lf__reaction_1;
+    _lf_reaction_instances[3] = &actiondelay_sink_self[0]->_lf__reaction_0;
     
     // Initialize the scheduler
     size_t num_reactions_per_level[4] = 

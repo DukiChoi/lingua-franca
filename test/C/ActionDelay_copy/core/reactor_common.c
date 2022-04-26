@@ -40,6 +40,10 @@ THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "utils/pqueue_support.h"
 #include "utils/util.c"
 
+#ifdef SCHEDULER_QS // Used for clearing PCs at a new timestep.
+#include "threaded/scheduler_QS.h"
+#endif
+
 /** 
  * Indicator of whether to wait for physical time to match logical time.
  * By default, execution will wait. The command-line argument -fast will
@@ -452,6 +456,9 @@ void _lf_start_time_step() {
     for(int i = 0; i < size; i++) {
         *is_present_fields[i] = false;
     }
+#ifdef SCHEDULER_QS
+    lf_sched_reset_pc();
+#endif
 #ifdef FEDERATED_DECENTRALIZED
     for (int i = 0; i < _lf_is_present_fields_size; i++) {
         // FIXME: For now, an intended tag of (NEVER, 0)
@@ -1591,6 +1598,7 @@ void schedule_output_reactions(reaction_t* reaction, int worker) {
                             		downstream_reaction->is_STP_violated, downstream_reaction->name);
                         }
 #endif
+#ifndef SCHEDULER_QS // Include the optimization (downstream_to_execute_now) if QS scheduler is not in use.
                         if (downstream_reaction != NULL && downstream_reaction != downstream_to_execute_now) {
                             num_downstream_reactions++;
                             // If there is exactly one downstream reaction that is enabled by this
@@ -1619,12 +1627,16 @@ void schedule_output_reactions(reaction_t* reaction, int worker) {
                                 _lf_trigger_reaction(downstream_reaction, worker);
                             }
                         }
+#else // If QS scheduler is used, exclude the optimization so that it does not affect quasi-static scheduling.
+                        // Queue the reaction.
+                        _lf_trigger_reaction(downstream_reaction, worker);
+#endif // SCHEDULER_QS
                     }
                 }
             }
         }
     }
-#ifndef QS_SCHEDULER
+#ifndef SCHEDULER_QS // Exclude the optimization so that it does not affect quasi-static scheduling.
     if (downstream_to_execute_now != NULL) {
         LOG_PRINT("Worker %d: Optimizing and executing downstream reaction now: %s", worker, downstream_to_execute_now->name);
         bool violation = false;
@@ -1669,7 +1681,7 @@ void schedule_output_reactions(reaction_t* reaction, int worker) {
                 		downstream_to_execute_now->name);
             }
         }
-#endif
+#endif // FEDERATED_DECENTRALIZED
         if (downstream_to_execute_now->deadline > 0LL) {
             // Get the current physical time.
             instant_t physical_time = get_physical_time();
@@ -1706,7 +1718,7 @@ void schedule_output_reactions(reaction_t* reaction, int worker) {
         DEBUG_PRINT("Finally, reset reaction's is_STP_violated field to false: %s",
         		downstream_to_execute_now->name);
     }
-#endif
+#endif // SCHEDULER_QS
 }
 
 /**

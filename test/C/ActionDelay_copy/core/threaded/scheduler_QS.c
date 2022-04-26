@@ -58,6 +58,96 @@ extern const uint32_t* schedule_lengths[];
 /////////////////// Scheduler Variables and Structs /////////////////////////
 _lf_sched_instance_t* _lf_sched_instance;
 
+/////////////////// Scheduler Private API /////////////////////////
+/**
+ * @brief If there is work to be done, notify workers individually.
+ *
+ * This assumes that the caller is not holding any thread mutexes.
+ */
+void _lf_sched_notify_workers() {
+    // TODO
+    /*
+    // Calculate the number of workers that we need to wake up, which is the
+    // Note: All threads are idle. Therefore, there is no need to lock the mutex
+    // while accessing the index for the current level.
+    size_t workers_to_awaken =
+        MIN(_lf_sched_instance->_lf_sched_number_of_idle_workers,
+            _lf_sched_instance->_lf_sched_indexes[
+                _lf_sched_instance->_lf_sched_next_reaction_level - 1 // Current 
+                                                                      // reaction
+                                                                      // level
+                                                                      // to execute.                                                         
+            ]);
+    DEBUG_PRINT("Scheduler: Notifying %d workers.", workers_to_awaken);
+
+    _lf_sched_instance->_lf_sched_number_of_idle_workers -= workers_to_awaken;
+    DEBUG_PRINT("Scheduler: New number of idle workers: %u.",
+                _lf_sched_instance->_lf_sched_number_of_idle_workers);
+    
+    if (workers_to_awaken > 1) {
+        // Notify all the workers except the worker thread that has called this
+        // function.
+        lf_semaphore_release(_lf_sched_instance->_lf_sched_semaphore,
+                             (workers_to_awaken - 1));
+    }
+    */
+}
+
+/**
+ * @brief Signal all worker threads that it is time to stop.
+ *
+ */
+void _lf_sched_signal_stop() {
+    _lf_sched_instance->_lf_sched_should_stop = true;
+    lf_semaphore_release(_lf_sched_instance->_lf_sched_semaphore,
+                         (_lf_sched_instance->_lf_sched_number_of_workers - 1));
+}
+
+/**
+ * @brief Wait until the scheduler assigns work.
+ *
+ * If the calling worker thread is the last to become idle, it will call on the
+ * scheduler to distribute work. Otherwise, it will wait on
+ * '_lf_sched_instance->_lf_sched_semaphore'.
+ *
+ * @param worker_number The worker number of the worker thread asking for work
+ * to be assigned to it.
+ */
+void _lf_sched_wait_for_work(size_t worker_number) {
+    // Increment the number of idle workers by 1 and check if this is the last
+    // worker thread to become idle.
+    if (lf_atomic_add_fetch(&_lf_sched_instance->_lf_sched_number_of_idle_workers,
+                            1) ==
+        _lf_sched_instance->_lf_sched_number_of_workers) {
+        // Last thread to go idle
+        DEBUG_PRINT("Scheduler: Worker %d is the last idle thread.",
+                    worker_number);
+        // FIXME: Do we need a while loop here like the NP scheduler?
+        // Nothing more happening at this tag.
+        DEBUG_PRINT("Scheduler: Advancing tag.");
+        // This worker thread will take charge of advancing tag.
+        if (_lf_sched_advance_tag_locked()) {
+            DEBUG_PRINT("Scheduler: Reached stop tag.");
+            _lf_sched_signal_stop();
+            lf_mutex_unlock(&mutex);
+        }
+        lf_mutex_unlock(&mutex);
+
+        _lf_sched_notify_workers();
+    } else {
+        // Not the last thread to become idle. Wait for work to be released.
+        DEBUG_PRINT(
+            "Scheduler: Worker %d is trying to acquire the scheduling "
+            "semaphore.",
+            worker_number);
+        // Call lf_semaphore_acquire here to be blocked.
+        // When new semaphores are available, acquire and resume.
+        lf_semaphore_acquire(_lf_sched_instance->_lf_sched_semaphore);
+        DEBUG_PRINT("Scheduler: Worker %d acquired the scheduling semaphore.",
+                    worker_number);
+    }
+}
+
 ///////////////////// Scheduler Init and Destroy API /////////////////////////
 /**
  * @brief Initialize the scheduler.
@@ -110,6 +200,7 @@ void lf_sched_init(
  * This must be called when the scheduler is no longer needed.
  */
 void lf_sched_free() {
+    DEBUG_PRINT("Freeing the pointers in the scheduler struct.");
     free(_lf_sched_instance->pc);
     free(_lf_sched_instance->reaction_return_values);
     free(_lf_sched_instance->semaphores);
@@ -133,45 +224,54 @@ reaction_t* lf_sched_get_ready_reaction(int worker_number) {
     // Execute the instructions
     size_t* pc = &_lf_sched_instance->pc[worker_number];
     int schedule_index = _lf_sched_instance->current_schedule_index;
-    int ret_value = _lf_sched_instance->reaction_return_values[worker_number];
-    const inst_t* sch_base = _lf_sched_instance->static_schedules[schedule_index][worker_number];
-    reaction_t** react_base = _lf_sched_instance->reaction_instances;
-    semaphore_t** sema_base = _lf_sched_instance->semaphores;
+    int ret_val = _lf_sched_instance->reaction_return_values[worker_number]; // FIXME: not used.
+    const inst_t* current_schedule = _lf_sched_instance->static_schedules[schedule_index][worker_number];
+    reaction_t** reaction_instances = _lf_sched_instance->reaction_instances;
+    semaphore_t** semaphores = _lf_sched_instance->semaphores;
     
     // If the instruction is Execute, return the reaction pointer and advance pc.
     // If the instruction is Wait, block until the reaction is finished (by checking
     // the semaphore) and process the next instruction until we process an Execute.
     // If the instruction is Stop, return NULL.
-    reaction_t* ret_val = NULL;
+    reaction_t* returned_reaction = NULL;
     bool loop_done = false;
     while (*pc < _lf_sched_instance->schedule_lengths[schedule_index][worker_number] && !loop_done) {
-        DEBUG_PRINT("Current instruction: %c %zu", sch_base[*pc].inst, sch_base[*pc].op);
-        switch (sch_base[*pc].inst) {
+        DEBUG_PRINT("Current instruction for worker %d: %c %zu", worker_number, current_schedule[*pc].inst, current_schedule[*pc].op);
+        switch (current_schedule[*pc].inst) {
         case 'e': // Execute 
         {
-            reaction_t* react = react_base[sch_base[*pc].op];
+            reaction_t* react = reaction_instances[current_schedule[*pc].op];
             if (react->status == queued) {
-                ret_val = react;
+                returned_reaction = react;
                 loop_done = true;
             } else
                 DEBUG_PRINT("Worker %d skip execution", worker_number);
             break;
         }
         case 'w': // Wait
-            lf_semaphore_wait(sema_base[sch_base[*pc].op]);
+            lf_semaphore_wait(semaphores[current_schedule[*pc].op]);
             break;
         case 'n': // Notify
-            lf_semaphore_release(sema_base[sch_base[*pc].op], 1);
+            lf_semaphore_release(semaphores[current_schedule[*pc].op], 1);
             break;
         case 's': // Stop
             loop_done = true;
             DEBUG_PRINT("Worker %d reaches a stop instruction", worker_number);
+            // Check if the worker is the last worker to reach stop.
+            // If so, this worker thread will take charge of advancing tag.
+            // Call _lf_sched_advance_tag_locked
+            // Scheduling semaphore?
+
+            // Ask the scheduler for more work and wait
+            // tracepoint_worker_wait_starts(worker_number);
+            _lf_sched_wait_for_work(worker_number);
+            // tracepoint_worker_wait_ends(worker_number);
             break;
         }
         *pc += 1;
     };
     DEBUG_PRINT("Worker %d leaves lf_sched_get_ready_reaction", worker_number);
-    return ret_val;
+    return returned_reaction;
 }
 
 /**
@@ -199,6 +299,10 @@ void lf_sched_done_with_reaction(size_t worker_number,
 /**
  * @brief Inform the scheduler that worker thread 'worker_number' would like to
  * trigger 'reaction' at the current tag.
+ * 
+ * This function will be directly called from the top-level c file once
+ * to handle the startup trigger. This function marks a reaction as queued,
+ * so that it can be returned as returned_reaction.
  *
  * @param reaction The reaction to trigger at the current tag.
  * @param worker_number The ID of the worker that is making this call. 0 should
@@ -208,5 +312,17 @@ void lf_sched_done_with_reaction(size_t worker_number,
  *
  */
 void lf_sched_trigger_reaction(reaction_t* reaction, int worker_number) {
-    DEBUG_PRINT("lf_sched_trigger_reaction called. Nothing implemented for QS scheduler yet.");
+    // Mark a reaction as queued, so that it will be executed when workers do work.
+    reaction->status = queued; 
+}
+
+/**
+ * @brief Reset the PCs of all workers to 0.
+ * 
+ */
+void lf_sched_reset_pc() {
+    // Reset all the PCs to 0.
+    for (int w = 0; w < _lf_sched_instance->_lf_sched_number_of_workers; w++) {
+        _lf_sched_instance->pc[w] = 0;
+    }
 }

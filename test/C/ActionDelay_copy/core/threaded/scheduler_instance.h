@@ -45,8 +45,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../utils/semaphore.h"
 #include "scheduler.h"
 
-// FIXME: Add a macro guard here.
+#ifdef SCHEDULER_QS
 #include "scheduler_QS.h"
+#endif
 
 extern lf_mutex_t mutex;
 
@@ -136,7 +137,7 @@ typedef struct {
      */
     volatile size_t _lf_sched_next_reaction_level;
 
-    // FIXME: Add a macro guard or refactor into a separate struct.
+#ifdef SCHEDULER_QS
     ///////// Specific to the quasi-static scheduler /////////
     /**
      * @brief Points to a read-only array of static schedules.
@@ -187,6 +188,7 @@ typedef struct {
      * semaphore IDs.
      */
     semaphore_t** semaphores;
+#endif
 } _lf_sched_instance_t;
 
 /**

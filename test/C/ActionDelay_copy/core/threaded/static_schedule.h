@@ -1,5 +1,4 @@
 /* Should be auto-generated */
-#include "scheduler_QS.h"
 
 // The total number of reactions
 static const int reaction_count = 4;

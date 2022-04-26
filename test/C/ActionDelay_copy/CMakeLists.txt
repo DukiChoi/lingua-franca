@@ -47,6 +47,8 @@ target_compile_definitions( ${LF_MAIN_TARGET} PUBLIC NUMBER_OF_WORKERS=3)
 # Target definitions
 target_compile_definitions( ${LF_MAIN_TARGET} PUBLIC LOG_LEVEL=4)
 
+# FIXME: To be added to the compiler
+add_compile_definitions(SCHEDULER_QS)
 
 install(
     TARGETS ${LF_MAIN_TARGET}
