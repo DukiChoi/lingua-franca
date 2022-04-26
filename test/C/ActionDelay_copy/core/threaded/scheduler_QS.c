@@ -66,18 +66,11 @@ _lf_sched_instance_t* _lf_sched_instance;
  */
 void _lf_sched_notify_workers() {
     // TODO
-    /*
+    
     // Calculate the number of workers that we need to wake up, which is the
     // Note: All threads are idle. Therefore, there is no need to lock the mutex
     // while accessing the index for the current level.
-    size_t workers_to_awaken =
-        MIN(_lf_sched_instance->_lf_sched_number_of_idle_workers,
-            _lf_sched_instance->_lf_sched_indexes[
-                _lf_sched_instance->_lf_sched_next_reaction_level - 1 // Current 
-                                                                      // reaction
-                                                                      // level
-                                                                      // to execute.                                                         
-            ]);
+    size_t workers_to_awaken = _lf_sched_instance->_lf_sched_number_of_workers;
     DEBUG_PRINT("Scheduler: Notifying %d workers.", workers_to_awaken);
 
     _lf_sched_instance->_lf_sched_number_of_idle_workers -= workers_to_awaken;
@@ -90,7 +83,7 @@ void _lf_sched_notify_workers() {
         lf_semaphore_release(_lf_sched_instance->_lf_sched_semaphore,
                              (workers_to_awaken - 1));
     }
-    */
+    
 }
 
 /**
@@ -246,16 +239,18 @@ reaction_t* lf_sched_get_ready_reaction(int worker_number) {
                 loop_done = true;
             } else
                 DEBUG_PRINT("Worker %d skip execution", worker_number);
+            *pc += 1;
             break;
         }
         case 'w': // Wait
             lf_semaphore_wait(semaphores[current_schedule[*pc].op]);
+            *pc += 1;
             break;
         case 'n': // Notify
             lf_semaphore_release(semaphores[current_schedule[*pc].op], 1);
+            *pc += 1;
             break;
         case 's': // Stop
-            loop_done = true;
             DEBUG_PRINT("Worker %d reaches a stop instruction", worker_number);
             // Check if the worker is the last worker to reach stop.
             // If so, this worker thread will take charge of advancing tag.
@@ -266,9 +261,9 @@ reaction_t* lf_sched_get_ready_reaction(int worker_number) {
             // tracepoint_worker_wait_starts(worker_number);
             _lf_sched_wait_for_work(worker_number);
             // tracepoint_worker_wait_ends(worker_number);
+            // loop_done = 
             break;
         }
-        *pc += 1;
     };
     DEBUG_PRINT("Worker %d leaves lf_sched_get_ready_reaction", worker_number);
     return returned_reaction;
