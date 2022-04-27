@@ -154,12 +154,6 @@ typedef struct {
     int current_schedule_index;
 
     /**
-     * @brief Return value of a reaction, indicating what output are generated.
-     *
-     */
-    int* reaction_return_values;
-
-    /**
      * @brief Points to a read-only array of lengths of the static schedules.
      * 
      */

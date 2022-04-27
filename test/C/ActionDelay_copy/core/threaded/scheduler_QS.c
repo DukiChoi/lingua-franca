@@ -78,8 +78,6 @@ void _lf_sched_notify_workers() {
     if (workers_to_awaken > 1) {
         // Notify all the workers except the worker thread that has called this
         // function.
-        // lf_semaphore_release(_lf_sched_instance->_lf_sched_semaphore,
-        //                      (workers_to_awaken - 1));
         lf_mutex_lock(&_lf_sched_instance->_lf_sched_semaphore->mutex);
         lf_cond_broadcast(&_lf_sched_instance->_lf_sched_semaphore->cond);
         lf_mutex_unlock(&_lf_sched_instance->_lf_sched_semaphore->mutex);
@@ -93,8 +91,6 @@ void _lf_sched_notify_workers() {
  */
 void _lf_sched_signal_stop() {
     _lf_sched_instance->_lf_sched_should_stop = true;
-    //lf_semaphore_release(_lf_sched_instance->_lf_sched_semaphore,
-     //                    (_lf_sched_instance->_lf_sched_number_of_workers - 1));
 }
 
 /**
@@ -186,7 +182,6 @@ void lf_sched_init(
     _lf_sched_instance->current_schedule_index = 0;
     _lf_sched_instance->schedule_lengths = &schedule_lengths[0];
     _lf_sched_instance->pc = calloc(number_of_workers, sizeof(size_t));
-    _lf_sched_instance->reaction_return_values = calloc(number_of_workers, sizeof(int));
     _lf_sched_instance->reaction_instances = params->reaction_instances;
     // Populate semaphores.
     _lf_sched_instance->semaphores = calloc(num_semaphores, sizeof(semaphore_t));
@@ -203,7 +198,6 @@ void lf_sched_init(
 void lf_sched_free() {
     DEBUG_PRINT("Freeing the pointers in the scheduler struct.");
     free(_lf_sched_instance->pc);
-    free(_lf_sched_instance->reaction_return_values);
     for (int i = 0; i < num_semaphores; i++) {
         lf_semaphore_destroy(_lf_sched_instance->semaphores[i]);
     }
@@ -228,7 +222,6 @@ reaction_t* lf_sched_get_ready_reaction(int worker_number) {
     // Execute the instructions
     size_t* pc = &_lf_sched_instance->pc[worker_number];
     int schedule_index = _lf_sched_instance->current_schedule_index;
-    int ret_val = _lf_sched_instance->reaction_return_values[worker_number]; // FIXME: not used.
     const inst_t* current_schedule = _lf_sched_instance->static_schedules[schedule_index][worker_number];
     reaction_t** reaction_instances = _lf_sched_instance->reaction_instances;
     semaphore_t** semaphores = _lf_sched_instance->semaphores;
@@ -265,13 +258,10 @@ reaction_t* lf_sched_get_ready_reaction(int worker_number) {
             DEBUG_PRINT("Worker %d reaches a stop instruction", worker_number);
             // Check if the worker is the last worker to reach stop.
             // If so, this worker thread will take charge of advancing tag.
-            // Call _lf_sched_advance_tag_locked
-            // Scheduling semaphore?
-
             // Ask the scheduler for more work and wait
-            // tracepoint_worker_wait_starts(worker_number);
+            tracepoint_worker_wait_starts(worker_number);
             _lf_sched_wait_for_work(worker_number);
-            // tracepoint_worker_wait_ends(worker_number);
+            tracepoint_worker_wait_ends(worker_number);
             loop_done = _lf_sched_instance->_lf_sched_should_stop;
             break;
         }
