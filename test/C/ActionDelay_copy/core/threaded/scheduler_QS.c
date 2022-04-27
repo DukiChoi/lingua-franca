@@ -204,6 +204,9 @@ void lf_sched_free() {
     DEBUG_PRINT("Freeing the pointers in the scheduler struct.");
     free(_lf_sched_instance->pc);
     free(_lf_sched_instance->reaction_return_values);
+    for (int i = 0; i < num_semaphores; i++) {
+        lf_semaphore_destroy(_lf_sched_instance->semaphores[i]);
+    }
     free(_lf_sched_instance->semaphores);
     free(_lf_sched_instance->reaction_instances);
 }
