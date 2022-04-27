@@ -64,9 +64,7 @@ _lf_sched_instance_t* _lf_sched_instance;
  *
  * This assumes that the caller is not holding any thread mutexes.
  */
-void _lf_sched_notify_workers() {
-    // TODO
-    
+void _lf_sched_notify_workers() {    
     // Calculate the number of workers that we need to wake up, which is the
     // Note: All threads are idle. Therefore, there is no need to lock the mutex
     // while accessing the index for the current level.
@@ -80,8 +78,11 @@ void _lf_sched_notify_workers() {
     if (workers_to_awaken > 1) {
         // Notify all the workers except the worker thread that has called this
         // function.
-        lf_semaphore_release(_lf_sched_instance->_lf_sched_semaphore,
-                             (workers_to_awaken - 1));
+        // lf_semaphore_release(_lf_sched_instance->_lf_sched_semaphore,
+        //                      (workers_to_awaken - 1));
+        lf_mutex_lock(&_lf_sched_instance->_lf_sched_semaphore->mutex);
+        lf_cond_broadcast(&_lf_sched_instance->_lf_sched_semaphore->cond);
+        lf_mutex_unlock(&_lf_sched_instance->_lf_sched_semaphore->mutex);
     }
     
 }
@@ -115,18 +116,21 @@ void _lf_sched_wait_for_work(size_t worker_number) {
         // Last thread to go idle
         DEBUG_PRINT("Scheduler: Worker %d is the last idle thread.",
                     worker_number);
-        // FIXME: Do we need a while loop here like the NP scheduler?
+
+        lf_mutex_lock(&mutex);
         // Nothing more happening at this tag.
         DEBUG_PRINT("Scheduler: Advancing tag.");
         // This worker thread will take charge of advancing tag.
         if (_lf_sched_advance_tag_locked()) {
             DEBUG_PRINT("Scheduler: Reached stop tag.");
             _lf_sched_signal_stop();
-            //lf_mutex_unlock(&mutex);
         }
         lf_mutex_unlock(&mutex);
-        //my edit:
-        //_lf_sched_instance->_lf_sched_should_stop = true;
+
+        // Reset all the PCs to 0.
+        for (int w = 0; w < _lf_sched_instance->_lf_sched_number_of_workers; w++) {
+            _lf_sched_instance->pc[w] = 0;
+        }
 
         _lf_sched_notify_workers();
     } else {
@@ -135,9 +139,11 @@ void _lf_sched_wait_for_work(size_t worker_number) {
             "Scheduler: Worker %d is trying to acquire the scheduling "
             "semaphore.",
             worker_number);
-        // Call lf_semaphore_acquire here to be blocked.
-        // When new semaphores are available, acquire and resume.
-        lf_semaphore_acquire(_lf_sched_instance->_lf_sched_semaphore);
+        // Wait for the last thread to signal the condition variable.
+        lf_mutex_lock(&_lf_sched_instance->_lf_sched_semaphore->mutex);
+        lf_cond_wait(&_lf_sched_instance->_lf_sched_semaphore->cond, &_lf_sched_instance->_lf_sched_semaphore->mutex);
+        lf_mutex_unlock(&_lf_sched_instance->_lf_sched_semaphore->mutex);
+        
         DEBUG_PRINT("Scheduler: Worker %d acquired the scheduling semaphore.",
                     worker_number);
     }
@@ -311,15 +317,4 @@ void lf_sched_done_with_reaction(size_t worker_number,
 void lf_sched_trigger_reaction(reaction_t* reaction, int worker_number) {
     // Mark a reaction as queued, so that it will be executed when workers do work.
     reaction->status = queued; 
-}
-
-/**
- * @brief Reset the PCs of all workers to 0.
- * 
- */
-void lf_sched_reset_pc() {
-    // Reset all the PCs to 0.
-    for (int w = 0; w < _lf_sched_instance->_lf_sched_number_of_workers; w++) {
-        _lf_sched_instance->pc[w] = 0;
-    }
 }

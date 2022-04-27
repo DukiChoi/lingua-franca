@@ -12,6 +12,4 @@ typedef struct {
     size_t op; // Operand
 } inst_t;
 
-void lf_sched_reset_pc();
-
 #endif // SCHEDULER_QS

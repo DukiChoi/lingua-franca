@@ -456,9 +456,6 @@ void _lf_start_time_step() {
     for(int i = 0; i < size; i++) {
         *is_present_fields[i] = false;
     }
-#ifdef SCHEDULER_QS
-    lf_sched_reset_pc();
-#endif
 #ifdef FEDERATED_DECENTRALIZED
     for (int i = 0; i < _lf_is_present_fields_size; i++) {
         // FIXME: For now, an intended tag of (NEVER, 0)
