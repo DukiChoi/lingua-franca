@@ -92,8 +92,8 @@ void _lf_sched_notify_workers() {
  */
 void _lf_sched_signal_stop() {
     _lf_sched_instance->_lf_sched_should_stop = true;
-    lf_semaphore_release(_lf_sched_instance->_lf_sched_semaphore,
-                         (_lf_sched_instance->_lf_sched_number_of_workers - 1));
+    //lf_semaphore_release(_lf_sched_instance->_lf_sched_semaphore,
+     //                    (_lf_sched_instance->_lf_sched_number_of_workers - 1));
 }
 
 /**
@@ -122,9 +122,11 @@ void _lf_sched_wait_for_work(size_t worker_number) {
         if (_lf_sched_advance_tag_locked()) {
             DEBUG_PRINT("Scheduler: Reached stop tag.");
             _lf_sched_signal_stop();
-            lf_mutex_unlock(&mutex);
+            //lf_mutex_unlock(&mutex);
         }
         lf_mutex_unlock(&mutex);
+        //my edit:
+        //_lf_sched_instance->_lf_sched_should_stop = true;
 
         _lf_sched_notify_workers();
     } else {
@@ -261,7 +263,7 @@ reaction_t* lf_sched_get_ready_reaction(int worker_number) {
             // tracepoint_worker_wait_starts(worker_number);
             _lf_sched_wait_for_work(worker_number);
             // tracepoint_worker_wait_ends(worker_number);
-            // loop_done = 
+            loop_done = _lf_sched_instance->_lf_sched_should_stop;
             break;
         }
     };
