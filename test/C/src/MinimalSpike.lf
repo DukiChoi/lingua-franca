@@ -1,0 +1,12 @@
+target C {
+    platform: spike,
+    no-compile: true,
+    threading: false
+};
+
+main reactor {
+    timer t;
+    reaction(t) {=
+        printf("Hello World.\n");
+    =}
+}
