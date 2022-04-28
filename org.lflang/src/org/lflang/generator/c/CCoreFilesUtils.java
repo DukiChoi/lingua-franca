@@ -59,15 +59,7 @@ public class CCoreFilesUtils {
             "platform/lf_POSIX_threads_support.h",
             "platform/lf_POSIX_threads_support.c",
             "platform/lf_unix_clock_support.c",
-            "platform/lf_unix_syscall_support.c",
-            "platform/lf_macos_support.c",
-            "platform/lf_macos_support.h",
-            "platform/lf_windows_support.c",
-            "platform/lf_windows_support.h",
-            "platform/lf_linux_support.c",
-            "platform/lf_linux_support.h",
-            "platform/lf_spike_support.c",
-            "platform/lf_spike_support.h"
+            "platform/lf_unix_syscall_support.c"
         );
     }
 

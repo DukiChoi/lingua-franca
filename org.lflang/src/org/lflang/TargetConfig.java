@@ -132,6 +132,12 @@ public class TargetConfig {
     public String platform = "";
 
     /**
+     * List of platform-specific files to be copied to src-gen.
+     * The first string is the source path, the second string is the destination file name.
+     */
+    public Map<String, String> platformSpecificFiles = new HashMap<>();
+
+    /**
      * The type of coordination used during the execution of a federated program.
      * The default is 'centralized'.
      */

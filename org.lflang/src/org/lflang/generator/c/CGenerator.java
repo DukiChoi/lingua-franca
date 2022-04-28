@@ -613,8 +613,15 @@ public class CGenerator extends GeneratorBase {
                 );
                 // Copy the header files
                 copyTargetHeaderFile();
-                // Copy spike extra support files
-                copySpikeFiles();
+
+                // Copy platform specific files
+                for(String source : targetConfig.platformSpecificFiles.keySet()) {
+                    String dest = targetConfig.platformSpecificFiles.get(source);
+                    FileUtil.copyFileFromClassPath(
+                        "/lib/c/reactor-c/" + source, 
+                        fileConfig.getSrcGenPath().resolve(dest)
+                    );
+                }
             } catch (IOException e) {
                 Exceptions.sneakyThrow(e);
             }
@@ -1167,27 +1174,52 @@ public class CGenerator extends GeneratorBase {
                      "core" + File.separator + "platform" + File.separator + "lf_macos_support.c"
                 );
             }
+            addPlatformFile("core/platform/lf_macos_support.c");
+            addPlatformFile("core/platform/lf_macos_support.h");
+
         } else if (OS.indexOf("win") >= 0) {
             if (mainDef != null && !targetConfig.useCmake) {
                 targetConfig.compileAdditionalSources.add(
                     "core" + File.separator + "platform" + File.separator + "lf_windows_support.c"
                 );
             }
+            addPlatformFile("core/platform/lf_windows_support.c");
+            addPlatformFile("core/platform/lf_windows_support.h");
+
         } else if (OS.indexOf("nux") >= 0) {
             if (mainDef != null && !targetConfig.useCmake) {
                 targetConfig.compileAdditionalSources.add(
                     "core" + File.separator + "platform" + File.separator + "lf_linux_support.c"
                 );
             }
+            addPlatformFile("core/platform/lf_linux_support.c");
+            addPlatformFile("core/platform/lf_linux_support.h");
+
         } else if (OS.indexOf("spike") >= 0) {
             if (mainDef != null && !targetConfig.useCmake) {
                 targetConfig.compileAdditionalSources.add(
                     "core" + File.separator + "platform" + File.separator + "lf_spike_support.c"
                 );
             }
+            addPlatformFile("core/platform/lf_spike_support.c");
+            addPlatformFile("core/platform/lf_spike_support.h");
+            targetConfig.platformSpecificFiles.put("core/spike/Makefile", "Makefile");
+            addPlatformFile("core/spike/common/crt.S");
+            addPlatformFile("core/spike/common/encoding.h");
+            addPlatformFile("core/spike/common/link.ld");
+            addPlatformFile("core/spike/common/syscall.c");
+            addPlatformFile("core/spike/common/util.h");
+            
         } else {
             errorReporter.reportError("Platform " + OS + " is not supported");
         }
+    }
+
+    /**
+     * Adds a platform-specific file to the target config
+     */
+    void addPlatformFile(String filename) {
+        targetConfig.platformSpecificFiles.put(filename, filename);
     }
     
     /**
@@ -1288,24 +1320,6 @@ public class CGenerator extends GeneratorBase {
     public void copyTargetHeaderFile() throws IOException{
         FileUtil.copyFileFromClassPath("/lib/c/reactor-c/include/ctarget.h", fileConfig.getSrcGenPath().resolve("ctarget.h"));
         FileUtil.copyFileFromClassPath("/lib/c/reactor-c/lib/ctarget.c", fileConfig.getSrcGenPath().resolve("ctarget.c"));
-    }
-
-    public void copySpikeFiles() throws IOException {
-        var OS = System.getProperty("os.name").toLowerCase();
-        if (targetConfig.platform != "") {
-            OS = targetConfig.platform;
-        }
-        // if not compiling for spike platform, don't copy spike files
-        if (OS.indexOf("spike") < 0) {
-            return;
-        }
-        
-        FileUtil.copyFileFromClassPath("/lib/c/reactor-c/core/spike/Makefile", fileConfig.getSrcGenPath().resolve("Makefile"));
-        FileUtil.copyFilesFromClassPath(
-            "/lib/c/reactor-c/core/spike/common", 
-            fileConfig.getSrcGenPath().resolve("core/spike/common"),
-            List.of("crt.S", "encoding.h", "link.ld", "syscall.c", "util.h")
-        );
     }
 
     ////////////////////////////////////////////
