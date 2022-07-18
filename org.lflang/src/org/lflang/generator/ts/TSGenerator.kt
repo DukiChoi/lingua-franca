@@ -27,33 +27,33 @@ package org.lflang.generator.ts
 
 import org.eclipse.emf.ecore.resource.Resource
 import org.eclipse.xtext.util.CancelIndicator
+import org.lflang.ASTUtils
 import org.lflang.ErrorReporter
 import org.lflang.InferredType
-import org.lflang.ASTUtils
 import org.lflang.Target
 import org.lflang.TimeValue
 import org.lflang.federated.FederateInstance
 import org.lflang.federated.launcher.FedTSLauncher
 import org.lflang.federated.serialization.SupportedSerializers
 import org.lflang.generator.CodeMap
+import org.lflang.generator.ExpressionGenerator
 import org.lflang.generator.GeneratorBase
 import org.lflang.generator.GeneratorResult
-import org.lflang.generator.IntegratedBuilder
 import org.lflang.generator.GeneratorUtils
+import org.lflang.generator.GeneratorUtils.canGenerate
+import org.lflang.generator.IntegratedBuilder
 import org.lflang.generator.LFGeneratorContext
 import org.lflang.generator.PrependOperator
+import org.lflang.generator.ReactorInstance
 import org.lflang.generator.SubContext
 import org.lflang.generator.TargetTypes
-import org.lflang.generator.ValueGenerator
-import org.lflang.generator.GeneratorUtils.canGenerate
 import org.lflang.inferredType
 import org.lflang.lf.Action
-import org.lflang.lf.Delay
+import org.lflang.lf.Expression
 import org.lflang.lf.Instantiation
 import org.lflang.lf.Parameter
 import org.lflang.lf.StateVar
 import org.lflang.lf.Type
-import org.lflang.lf.Value
 import org.lflang.lf.VarRef
 import org.lflang.scoping.LFGlobalScopeProvider
 import org.lflang.util.FileUtil
@@ -100,9 +100,10 @@ class TSGenerator(
             "reaction.ts", "reactor.ts", "microtime.d.ts", "multiport.ts", "nanotimer.d.ts", "port.ts",
             "state.ts", "strings.ts", "time.ts", "trigger.ts", "types.ts", "ulog.d.ts", "util.ts")
 
-        private val VG = ValueGenerator(::timeInTargetLanguage) { param -> "this.${param.name}.get()" }
+        private val VG =
+            ExpressionGenerator(::timeInTargetLanguage) { param -> "this.${param.name}.get()" }
 
-        private fun timeInTargetLanguage(value: TimeValue): String {
+        fun timeInTargetLanguage(value: TimeValue): String {
             return if (value.unit != null) {
                 "TimeValue.${value.unit.canonicalName}(${value.magnitude})"
             } else {
@@ -115,7 +116,8 @@ class TSGenerator(
          * The percent progress associated with having collected all JS/TS dependencies.
          */
         private const val COLLECTED_DEPENDENCIES_PERCENT_PROGRESS
-            = (IntegratedBuilder.GENERATED_PERCENT_PROGRESS + IntegratedBuilder.COMPILED_PERCENT_PROGRESS) / 2
+                = (IntegratedBuilder.GENERATED_PERCENT_PROGRESS + IntegratedBuilder.COMPILED_PERCENT_PROGRESS) / 2
+
     }
 
     init {
@@ -127,7 +129,7 @@ class TSGenerator(
     // Wrappers to expose GeneratorBase methods.
     fun federationRTIPropertiesW() = federationRTIProperties
 
-    fun getTargetValueW(v: Value): String = VG.getTargetValue(v, false)
+    fun getTargetValueW(expr: Expression): String = VG.getTargetValue(expr, false)
     fun getTargetTypeW(p: Parameter): String = TSTypes.getTargetType(p.inferredType)
     fun getTargetTypeW(state: StateVar): String = TSTypes.getTargetType(state)
     fun getTargetTypeW(t: Type): String = TSTypes.getTargetType(t)
@@ -148,20 +150,20 @@ class TSGenerator(
 
         if (!canGenerate(errorsOccurred(), mainDef, errorReporter, context)) return
         if (!isOsCompatible()) return
-        
-        // FIXME: The following operation must be done after levels are assigned.
-        //  Removing these ports before that will cause incorrect levels to be assigned.
-        //  See https://github.com/lf-lang/lingua-franca/discussions/608
-        //  For now, avoid compile errors by removing disconnected network ports before
-        //  assigning levels.
-        removeRemoteFederateConnectionPorts(null);
-        
+
+        createMainReactorInstance()
+
         clean(context)
         copyRuntime()
         copyConfigFiles()
 
         val codeMaps = HashMap<Path, CodeMap>()
-        for (federate in federates) generateCode(federate, codeMaps)
+        val dockerGenerator = TSDockerGenerator(isFederated)
+        for (federate in federates) generateCode(federate, codeMaps, dockerGenerator)
+        if (targetConfig.dockerOptions != null) {
+            dockerGenerator.setHost(federationRTIProperties.get("host"))
+            dockerGenerator.writeDockerFiles(tsFileConfig.tsDockerComposeFilePath())
+        }
         // For small programs, everything up until this point is virtually instantaneous. This is the point where cancellation,
         // progress reporting, and IDE responsiveness become real considerations.
         if (targetConfig.noCompile) {
@@ -240,10 +242,58 @@ class TSGenerator(
         }
     }
 
+
+    /**
+     * If a main or federated reactor has been declared, create a ReactorInstance of it.
+     * This will assign levels to reactions; then, if the program is federated,
+     * an AST transformation is performed to disconnect connections between federates.
+     */
+    private fun createMainReactorInstance() {
+        if (mainDef != null) {
+            if (main == null) {
+                // Recursively build instances. This is done once because
+                // it is the same for all federates.
+                main = ReactorInstance(
+                    ASTUtils.toDefinition(mainDef.reactorClass), errorReporter,
+                    unorderedReactions
+                )
+                val reactionInstanceGraph = main.assignLevels()
+                if (reactionInstanceGraph.nodeCount() > 0) {
+                    errorReporter.reportError("Main reactor has causality cycles. Skipping code generation.")
+                    return
+                }
+                // Inform the run-time of the breadth/parallelism of the reaction graph
+                val breadth = reactionInstanceGraph.breadth
+                if (breadth == 0) {
+                    errorReporter.reportWarning("The program has no reactions")
+                } else {
+                    targetConfig.compileDefinitions["LF_REACTION_GRAPH_BREADTH"] = reactionInstanceGraph.breadth.toString()
+                }
+            }
+
+            // Force reconstruction of dependence information.
+            if (isFederated) {
+                // FIXME: The following operation must be done after levels are assigned.
+                //  Removing these ports before that will cause incorrect levels to be assigned.
+                //  See https://github.com/lf-lang/lingua-franca/discussions/608
+                //  For now, avoid compile errors by removing disconnected network ports before
+                //  assigning levels.
+                removeRemoteFederateConnectionPorts(main)
+                // There will be AST transformations that invalidate some info
+                // cached in ReactorInstance.
+                main.clearCaches(false)
+            }
+        }
+    }
+
     /**
      * Generate the code corresponding to [federate], recording any resulting mappings in [codeMaps].
      */
-    private fun generateCode(federate: FederateInstance, codeMaps: MutableMap<Path, CodeMap>) {
+    private fun generateCode(
+        federate: FederateInstance,
+        codeMaps: MutableMap<Path, CodeMap>,
+        dockerGenerator: TSDockerGenerator
+    ) {
         var tsFileName = fileConfig.name
         // TODO(hokeun): Consider using FedFileConfig when enabling federated execution for TypeScript.
         // For details, see https://github.com/icyphy/lingua-franca/pull/431#discussion_r676302102
@@ -267,23 +317,15 @@ class TSGenerator(
         for (reactor in reactors) {
             tsCode.append(reactorGenerator.generateReactor(reactor, federate))
         }
-        tsCode.append(reactorGenerator.generateReactorInstanceAndStart(this.mainDef, mainParameters))
+
+        tsCode.append(reactorGenerator.generateReactorInstanceAndStart(federate, this.main, this.mainDef, mainParameters))
+
         val codeMap = CodeMap.fromGeneratedCode(tsCode.toString())
         codeMaps[tsFilePath] = codeMap
         FileUtil.writeToFile(codeMap.generatedCode, tsFilePath)
 
-        if (targetConfig.dockerOptions != null && isFederated) {
-            println("WARNING: Federated Docker file generation is not supported on the Typescript target. No docker file is generated.")
-        } else if (targetConfig.dockerOptions != null) {
-            val dockerFilePath = fileConfig.srcGenPath.resolve("$tsFileName.Dockerfile")
-            val dockerComposeFile = fileConfig.srcGenPath.resolve("docker-compose.yml")
-            val dockerGenerator = TSDockerGenerator(tsFileName)
-            println("docker file written to $dockerFilePath")
-            FileUtil.writeToFile(dockerGenerator.generateDockerFileContent(), dockerFilePath)
-            FileUtil.writeToFile(
-                dockerGenerator.generateDockerComposeFileContent(),
-                dockerComposeFile
-            )
+        if (targetConfig.dockerOptions != null) {
+            dockerGenerator.addFile(dockerGenerator.fromData(tsFileName, tsFileConfig))
         }
     }
 
@@ -534,11 +576,9 @@ class TSGenerator(
         serializer: SupportedSerializers
     ): String {
         return with(PrependOperator) {"""
-        |// FIXME: For now assume the data is a Buffer, but this is not checked.
-        |// Replace with ProtoBufs or MessagePack.
         |// generateNetworkReceiverBody
         |if (${action.name} !== undefined) {
-        |    ${receivingPort.container.name}.${receivingPort.variable.name} = ${action.name}.toString(); // defaults to utf8 encoding
+        |    ${receivingPort.container.name}.${receivingPort.variable.name} = ${action.name};
         |}
         """.trimMargin()}
     }
@@ -569,15 +609,12 @@ class TSGenerator(
         receivingFed: FederateInstance,
         type: InferredType,
         isPhysical: Boolean,
-        delay: Delay?,
+        delay: Expression?,
         serializer: SupportedSerializers
     ): String {
         return with(PrependOperator) {"""
-        |// FIXME: For now assume the data is a Buffer, but this is not checked.
-        |// Use SupportedSerializers for determining the serialization later.
         |if (${sendingPort.container.name}.${sendingPort.variable.name} !== undefined) {
-        |    let buf = Buffer.from(${sendingPort.container.name}.${sendingPort.variable.name})
-        |    this.util.sendRTITimedMessage(buf, ${receivingFed.id}, ${receivingPortID});
+        |    this.util.sendRTITimedMessage(${sendingPort.container.name}.${sendingPort.variable.name}, ${receivingFed.id}, ${receivingPortID});
         |}
         """.trimMargin()}
     }
@@ -600,7 +637,7 @@ class TSGenerator(
         receivingFederateID: Int,
         sendingBankIndex: Int,
         sendingChannelIndex: Int,
-        delay: Delay?
+        delay: Expression?
     ): String? {
         return with(PrependOperator) {"""
         |// TODO(hokeun): Figure out what to do for generateNetworkOutputControlReactionBody

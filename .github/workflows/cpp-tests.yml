@@ -27,6 +27,11 @@ jobs:
       - name: Install Dependencies OS X
         run: brew install coreutils
         if: runner.os == 'macOS'
+      - name: Install clang-tidy on Ubuntu
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-tidy
+        if: matrix.platform == 'ubuntu-latest'
       - name: Check out specific ref of reactor-cpp
         uses: actions/checkout@v2
         with:
@@ -36,7 +41,7 @@ jobs:
         if: ${{ inputs.runtime-ref }} 
       - name: Run C++ tests;
         run: |
-          ./gradlew test --tests org.lflang.tests.runtime.CppTest.* --tests org.lflang.tests.lsp.LspTests.lspWithDependenciesTestCpp
+          ./gradlew test --tests org.lflang.tests.runtime.CppTest.*
       - name: Report to CodeCov
         uses: codecov/codecov-action@v2.1.0
         with:
